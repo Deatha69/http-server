@@ -50,7 +50,6 @@ void geturl(const URI& uri, const std::string& filename = "") {
     int             sockfd, n;
     char            buffer[2048];
     std::string     request, header, response;
-    bool            saveToFile = filename != "";
 
     // Get data about host
     memset(&hints, 0, sizeof(hints));
