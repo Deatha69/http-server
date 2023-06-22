@@ -1,21 +1,21 @@
 #include <arpa/inet.h>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <iostream>
 #include <netdb.h>
-#include <regex>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
 
-// Uri struct <scheme/host:port/path>
+struct IP {
+    std::string address;
+    std::string port;
+};
+
 struct URI
 {
-    std::string scheme;
     std::string host;
     std::string port;
     std::string path;
+    IP ip;
 };
 
 // Function to parse uri
@@ -44,18 +44,33 @@ void parseURL(URI& parsedUri, std::string url) {
     }
 }
 
-// Function to get data from url
-void geturl(const URI& uri, const std::string& filename = "") {
+// Function to convert domain name to ip
+void domainToIp(URI& uri) {
+    struct hostent*  he;
+    struct in_addr** addr_list;
+    std::string      result;
+
+    if ((he = gethostbyname(uri.host.c_str())) == NULL) {
+        result = "Idk how to call this error";
+    }
+
+    addr_list = (struct in_addr**)he->h_addr_list;
+    uri.ip.address    = inet_ntoa(*addr_list[0]);
+    uri.ip.port = uri.port;
+}
+
+void getRequestIP(const URI& uri) {
     struct addrinfo hints, *res;
     int             sockfd, n;
     char            buffer[2048];
     std::string     request, header, response;
 
-    // Get data about host
+    // Get data about IP-address
     memset(&hints, 0, sizeof(hints));
     hints.ai_family   = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    if ((n = getaddrinfo(uri.host.c_str(), uri.port.c_str(), &hints, &res)) != 0) {
+    //  if ((n = getaddrinfo(ip.c_str(), "http", &hints, &res)) != 0)
+    if ((n = getaddrinfo(uri.ip.address.c_str(), uri.ip.port.c_str(), &hints, &res)) != 0) {
         std::cerr << "getaddrinfo: " << gai_strerror(n) << std::endl;
         return;
     }
@@ -72,12 +87,12 @@ void geturl(const URI& uri, const std::string& filename = "") {
     freeaddrinfo(res);
 
     // Send request to server
-    request = "GET " + uri.path + " HTTP/1.0\r\n";
-    request += "Host: " + uri.host + "\r\n";
-    request += "User-Agent: HttpRequest/1.0\r\n\r\n";
+    request = "GET "+ uri.path + " HTTP/1.0\r\n";
+    request += "Host: " + uri.ip.address + "\r\n";
+    request += "User-Agent: Http/1.0\r\n\r\n";
     send(sockfd, request.c_str(), request.size(), 0);
 
-    // Read data from server and display it 
+    // Read data from server and display it
     ssize_t bytes;
     bool    headerEnded   = false;
     size_t  contentLength = 0;
@@ -115,6 +130,7 @@ int main(int argc, char* argv[]) {
     }
     URI uri;
     parseURL(uri, argv[1]);
-    geturl(uri, (argc > 2) ? argv[2] : "");
+    domainToIp(uri);
+    getRequestIP(uri);
     return 0;
 }
