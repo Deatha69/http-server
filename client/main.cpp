@@ -55,6 +55,13 @@ struct URI
     IP          ip;
 };
 
+// Function for checking the port
+bool isPortValid(const std::string port)
+{
+    int portNumber = std::stoi(port);
+    return (portNumber >= 0 && portNumber <= 65535);
+}
+
 // Function for checking the ip address
 bool isIpAddressValid(const std::string& ip_address)
 {
@@ -123,14 +130,13 @@ void parseData(URI& parsedUri, std::string url)
                 throw std::runtime_error("Invalid ip \"" + url + "\".");
         } else {
             if (isIpAddressValid(url.substr(0, pos))) {
-                int portNumber = std::stoi(url.substr(pos + 1));
-                if (portNumber >= 0 && portNumber <= 65535) {
+                if (isPortValid(url.substr(pos + 1))) {
                     parsedUri.ip.address = url.substr(0, pos);
                     parsedUri.ip.port    = url.substr(pos + 1);
                     parsedUri.path       = "/";
-                } else 
+                } else
                     throw std::runtime_error("Invalid port \"" + url.substr(pos + 1) + "\".");
-            } else 
+            } else
                 throw std::runtime_error("Invalid ip \"" + url.substr(0, pos) + "\".");
         }
 
@@ -147,8 +153,12 @@ void parseData(URI& parsedUri, std::string url)
 
         const size_t colonIndex = parsedUri.host.find_first_of(':');
         if (colonIndex != std::string::npos) {
-            parsedUri.port = parsedUri.host.substr(colonIndex + 1);
-            parsedUri.host = parsedUri.host.substr(0, colonIndex);
+            if (isPortValid(parsedUri.host.substr(colonIndex + 1))) {
+                parsedUri.port = parsedUri.host.substr(colonIndex + 1);
+                parsedUri.host = parsedUri.host.substr(0, colonIndex);
+            } else {
+                throw std::runtime_error("Invalid port \"" + parsedUri.host.substr(colonIndex + 1) + "\".");
+            }
         } else {
             parsedUri.port = "80";
         }
