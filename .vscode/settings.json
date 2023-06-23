@@ -65,6 +65,15 @@
         "concepts": "cpp",
         "algorithm": "cpp",
         "xstring": "cpp",
-        "functional": "cpp"
+        "functional": "cpp",
+        "__std_stream": "cpp",
+        "charconv": "cpp",
+        "condition_variable": "cpp",
+        "format": "cpp",
+        "fstream": "cpp",
+        "iomanip": "cpp",
+        "span": "cpp",
+        "stack": "cpp",
+        "thread": "cpp"
     }
 }

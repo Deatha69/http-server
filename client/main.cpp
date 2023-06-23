@@ -41,203 +41,223 @@ using socket_t = SOCKET;
 
 #include "log.hpp"
 
-struct IP
+class IP
 {
-    std::string address;
-    std::string port;
-};
+  private:
+    std::string m_address;
+    std::string m_port;
 
-struct URI
-{
-    std::string host;
-    std::string port;
-    std::string path;
-    IP          ip;
-};
-
-// Function for checking the port
-bool isPortValid(const std::string port)
-{
-    int portNumber = std::stoi(port);
-    return (portNumber >= 0 && portNumber <= 65535);
-}
-
-// Function for checking the ip address
-bool isIpAddressValid(const std::string& ip_address)
-{
-    std::vector<std::string> parts;
-    std::stringstream        ss(ip_address);
-    std::string              part;
-    while (std::getline(ss, part, '.')) {
-        parts.push_back(part);
+  public:
+    IP() = default;
+    IP(const std::string& address, const std::string& port = "80") : m_address{address}, m_port{port}
+    {
+        if (!isIpAddressValid(address)) {
+            LOG_ERROR("Invalid ip!", address);
+            throw std::invalid_argument("Invalid IP address format");
+        }
+        if (!isPortValid(port)) {
+            LOG_ERROR("Invalid port!", port);
+            throw std::invalid_argument("Invalid port number");
+        }
     }
 
-    if (parts.size() != 4) {
-        throw std::runtime_error("IP address should contain exactly 4 parts");
-        return false;
+    // Function for checking the port
+    static bool isPortValid(const std::string& port)
+    {
+        int portNumber = std::stoi(port);
+        return (portNumber >= 0 && portNumber <= 65535);
     }
 
-    for (const auto& part : parts) {
-        try {
-            int num = std::stoi(part);
-            if (num < 0 || num > 255) {
-                throw std::runtime_error("Number " + part + " is not in the range from 0 to 255");
-                return false;
-            }
-        } catch (std::invalid_argument&) {
-            throw std::runtime_error("Part " + part + " is not a number");
+    // Function for checking the ip address
+    static bool isIpAddressValid(const std::string& ip_address)
+    {
+        std::vector<std::string> parts;
+        std::stringstream        ss(ip_address);
+        std::string              part;
+        while (std::getline(ss, part, '.')) {
+            parts.push_back(part);
+        }
+
+        if (parts.size() != 4) {
             return false;
         }
-    }
 
-    return true;
-}
-
-// Function to convert domain name to ip
-void domainToIp(URI& uri)
-{
-    struct hostent*  he;
-    struct in_addr** addr_list;
-    std::string      result;
-
-    if ((he = gethostbyname(uri.host.c_str())) == NULL) {
-        LOG_ERROR("Failed to resolve comain {} ip!", uri.host);
-        throw std::runtime_error("Failed convert domain \"" + uri.host + "\" to ip");
-    }
-
-    addr_list      = (struct in_addr**)he->h_addr_list;
-    uri.ip.address = inet_ntoa(*addr_list[0]);
-    if (isIpAddressValid(uri.ip.address)) {
-        uri.ip.port = uri.port;
-    } else {
-        LOG_ERROR("Invalid ip!", uri.ip.address);
-        throw std::runtime_error("Invalid ip \"" + uri.ip.address + "\".");
-    }
-}
-
-// Function to parse data
-void parseData(URI& parsedUri, std::string url)
-{
-    constexpr size_t httpPrefixSize = 7;
-    if (url.substr(0, httpPrefixSize) != "http://") {
-        size_t pos = url.find(":");
-        if (pos == std::string::npos) {
-            if (isIpAddressValid(url)) {
-                parsedUri.ip.address = url;
-                parsedUri.ip.port    = "80";
-                parsedUri.path       = "/";
-            } else
-                throw std::runtime_error("Invalid ip \"" + url + "\".");
-        } else {
-            if (isIpAddressValid(url.substr(0, pos))) {
-                if (isPortValid(url.substr(pos + 1))) {
-                    parsedUri.ip.address = url.substr(0, pos);
-                    parsedUri.ip.port    = url.substr(pos + 1);
-                    parsedUri.path       = "/";
-                } else
-                    throw std::runtime_error("Invalid port \"" + url.substr(pos + 1) + "\".");
-            } else
-                throw std::runtime_error("Invalid ip \"" + url.substr(0, pos) + "\".");
+        for (const auto& part : parts) {
+            try {
+                int num = std::stoi(part);
+                if (num < 0 || num > 255) {
+                    return false;
+                }
+            } catch (std::invalid_argument&) {
+                return false;
+            }
         }
 
-    } else {
-        url                     = url.substr(httpPrefixSize);
-        const size_t slashIndex = url.find_first_of('/');
-        if (slashIndex == std::string::npos) {
-            parsedUri.host = url;
-            parsedUri.path = "/";
-        } else {
-            parsedUri.host = url.substr(0, slashIndex);
-            parsedUri.path = url.substr(slashIndex);
+        return true;
+    }
+
+    const std::string& getAddress() const
+    {
+        return m_address;
+    }
+
+    const std::string& getPort() const
+    {
+        return m_port;
+    }
+};
+
+class Client
+{
+  private:
+    struct URI
+    {
+        std::string ip;
+        std::string host;
+        std::string port;
+        std::string path;
+    };
+
+    std::string m_url;
+    URI         m_uri;
+    IP          ip;
+
+  public:
+    Client(const std::string& url) : m_url(url)
+    {
+        parseData();
+    }
+
+    void getRequestIP()
+    {
+        struct addrinfo hints, *res;
+
+        socket_t    sockfd = 0;
+        int         n;
+        char        buffer[2048];
+        std::string request, header, response;
+
+        // Get data about IP-address
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family   = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        //  if ((n = getaddrinfo(ip.c_str(), "http", &hints, &res)) != 0)
+        if ((n = getaddrinfo(m_uri.ip.c_str(), m_uri.port.c_str(), &hints, &res)) != 0) {
+            LOG_ERROR("getaddrinfo: {}", gai_strerror(n));
+            return;
         }
 
-        const size_t colonIndex = parsedUri.host.find_first_of(':');
-        if (colonIndex != std::string::npos) {
-            if (isPortValid(parsedUri.host.substr(colonIndex + 1))) {
-                parsedUri.port = parsedUri.host.substr(colonIndex + 1);
-                parsedUri.host = parsedUri.host.substr(0, colonIndex);
+        // Create socket and setup connection
+        if ((sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
+            LOG_ERROR("Failed to create a socket");
+            return;
+        }
+
+        if (connect(sockfd, res->ai_addr, res->ai_addrlen) == -1) {
+            LOG_ERROR("Failed to connect to the socket");
+            return;
+        }
+
+        freeaddrinfo(res);
+
+        // Send request to server
+        request = "GET " + m_uri.path + " HTTP/1.0\r\n";
+        request += "Host: " + m_uri.ip + "\r\n";
+        request += "User-Agent: Http/1.0\r\n\r\n";
+
+        LOG_DEBUG("Sending request with data:\n{}", request);
+        send(sockfd, request.c_str(), request.size(), 0);
+
+        // Read data from server and display it
+        size_t bytes;
+        bool   headerEnded   = false;
+        size_t contentLength = 0;
+
+        while ((bytes = recv(sockfd, buffer, sizeof(buffer), 0)) > 0) {
+            if (!headerEnded) {
+                header.append(buffer, bytes);
+                size_t pos = header.find("\r\n\r\n");
+                if (pos != std::string::npos) {
+                    headerEnded = true;
+                    std::string contentLengthStr("Content-Length:");
+                    size_t      contentLengthPos = header.find(contentLengthStr);
+                    if (contentLengthPos != std::string::npos) {
+                        contentLength = std::stoi(header.substr(contentLengthPos + contentLengthStr.length()));
+                    }
+                    if (contentLength == 0) {
+                        break;
+                    }
+                }
+            }
+            response.append(buffer, bytes);
+            contentLength -= bytes;
+            if (contentLength == 0) {
+                break;
+            }
+        }
+
+        LOG_DEBUG("Content received: {}", response);
+
+        CLOSE_SOCKET(sockfd);
+    }
+
+  private:
+    // Function to parse data
+    void parseData()
+    {
+        constexpr size_t httpPrefixSize = 7;
+        if (m_url.substr(0, httpPrefixSize) != "http://") {
+            size_t pos = m_url.find(":");
+            if (pos == std::string::npos) {
+                IP ip(m_url, "80");
+                m_uri.ip = ip.getAddress();
+                m_uri.port = ip.getPort();
+                m_uri.path = "/";
             } else {
-                throw std::runtime_error("Invalid port \"" + parsedUri.host.substr(colonIndex + 1) + "\".");
+                IP ip(m_url.substr(0, pos), m_url.substr(pos + 1));
+                m_uri.ip = ip.getAddress();
+                m_uri.port = ip.getPort();
+                m_uri.path = "/";
             }
         } else {
-            parsedUri.port = "80";
-        }
-        domainToIp(parsedUri);
-    }
-}
-
-void getRequestIP(const URI& uri)
-{
-    struct addrinfo hints, *res;
-
-    socket_t    sockfd = 0;
-    int         n;
-    char        buffer[2048];
-    std::string request, header, response;
-
-    // Get data about IP-address
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    //  if ((n = getaddrinfo(ip.c_str(), "http", &hints, &res)) != 0)
-    if ((n = getaddrinfo(uri.ip.address.c_str(), uri.ip.port.c_str(), &hints, &res)) != 0) {
-        LOG_ERROR("getaddrinfo: {}", gai_strerror(n));
-        return;
-    }
-
-    // Create socket and setup connection
-    if ((sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
-        LOG_ERROR("Failed to create a socket");
-        return;
-    }
-
-    if (connect(sockfd, res->ai_addr, res->ai_addrlen) == -1) {
-        LOG_ERROR("Failed to connect to the socket");
-        return;
-    }
-
-    freeaddrinfo(res);
-
-    // Send request to server
-    request = "GET " + uri.path + " HTTP/1.0\r\n";
-    request += "Host: " + uri.ip.address + "\r\n";
-    request += "User-Agent: Http/1.0\r\n\r\n";
-
-    LOG_DEBUG("Sending request with data:\n{}", request);
-    send(sockfd, request.c_str(), request.size(), 0);
-
-    // Read data from server and display it
-    size_t bytes;
-    bool   headerEnded   = false;
-    size_t contentLength = 0;
-
-    while ((bytes = recv(sockfd, buffer, sizeof(buffer), 0)) > 0) {
-        if (!headerEnded) {
-            header.append(buffer, bytes);
-            size_t pos = header.find("\r\n\r\n");
-            if (pos != std::string::npos) {
-                headerEnded = true;
-                std::string contentLengthStr("Content-Length:");
-                size_t      contentLengthPos = header.find(contentLengthStr);
-                if (contentLengthPos != std::string::npos) {
-                    contentLength = std::stoi(header.substr(contentLengthPos + contentLengthStr.length()));
-                }
-                if (contentLength == 0) {
-                    break;
-                }
+            m_url                   = m_url.substr(httpPrefixSize);
+            const size_t slashIndex = m_url.find_first_of('/');
+            if (slashIndex == std::string::npos) {
+                m_uri.host = m_url;
+                m_uri.path = "/";
+            } else {
+                m_uri.host = m_url.substr(0, slashIndex);
+                m_uri.path = m_url.substr(slashIndex);
             }
-        }
-        response.append(buffer, bytes);
-        contentLength -= bytes;
-        if (contentLength == 0) {
-            break;
+
+            const size_t colonIndex = m_uri.host.find_first_of(':');
+            if (colonIndex != std::string::npos) {
+                m_uri.port = m_uri.host.substr(colonIndex + 1);
+                m_uri.host = m_uri.host.substr(0, colonIndex);
+
+            } else {
+                m_uri.port = "80";
+            }
+            domainToIp();
         }
     }
+    // Function to convert domain name to ip
+    void domainToIp()
+    {
+        struct hostent*  he;
+        struct in_addr** addr_list;
+        std::string      result;
 
-    LOG_DEBUG("Content received: {}", response);
+        if ((he = gethostbyname(m_uri.host.c_str())) == NULL) {
+            LOG_ERROR("Failed to resolve comain {} ip!", m_uri.host);
+            throw std::runtime_error("Failed convert domain \"" + m_uri.host + "\" to ip");
+        }
 
-    CLOSE_SOCKET(sockfd);
-}
+        addr_list = (struct in_addr**)he->h_addr_list;
+        IP ip(inet_ntoa(*addr_list[0]));
+        m_uri.ip = ip.getAddress();
+    }
+};
 
 int main(int argc, char* argv[])
 {
@@ -253,11 +273,9 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    URI uri;
-
     try {
-        parseData(uri, argv[1]);
-        getRequestIP(uri);
+        Client client(argv[1]);
+        client.getRequestIP();
     } catch (const std::exception& e) {
         LOG_ERROR("Exception has occurred: {}", e.what());
     }
