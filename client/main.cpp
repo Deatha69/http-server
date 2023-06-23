@@ -48,7 +48,6 @@ class IP
     std::string m_port;
 
   public:
-    IP() = default;
     IP(const std::string& address, const std::string& port = "80") : m_address{address}, m_port{port}
     {
         if (!isIpAddressValid(address)) {
@@ -120,7 +119,6 @@ class Client
 
     std::string m_url;
     URI         m_uri;
-    IP          ip;
 
   public:
     Client(const std::string& url) : m_url(url)
