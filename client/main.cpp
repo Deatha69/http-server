@@ -1,11 +1,47 @@
-#include <arpa/inet.h>
+
 #include <iostream>
-#include <netdb.h>
+
 #include <string>
+#include <stdint.h>
+
+#if defined(__APPLE__)
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <sys/socket.h>
 #include <unistd.h>
+using socket_t = int;
+#define CLOSE_SOCKET(sockfd) close(sockfd)
+#define PLATFORM_INIT() \
+    [] {                \
+        return true     \
+    }()
+#define PLATFORM_CLEANUP() \
+    [] {                   \
+        return true;       \
+    }()
+#elif defined(_WIN32) || defined(_WIN64)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+using socket_t = SOCKET;
+#define CLOSE_SOCKET(sockfd) closesocket(sockfd)
+#define PLATFORM_INIT()                                 \
+    [] {                                                \
+        WSAData wsaData;                                \
+        memset(&wsaData, 0, sizeof(wsaData));           \
+        int res = WSAStartup(MAKEWORD(2, 2), &wsaData); \
+        return res == 0;                                \
+    }()
 
-struct IP {
+#define PLATFORM_CLEANUP()        \
+    [] {                          \
+        return WSACleanup() == 0; \
+    }()
+#endif
+
+#include "log.hpp"
+
+struct IP
+{
     std::string address;
     std::string port;
 };
@@ -15,11 +51,12 @@ struct URI
     std::string host;
     std::string port;
     std::string path;
-    IP ip;
+    IP          ip;
 };
 
 // Function to parse uri
-void parseURL(URI& parsedUri, std::string url) {
+void parseURL(URI& parsedUri, std::string url)
+{
     constexpr size_t httpPrefixSize = 7;
     if (url.substr(0, httpPrefixSize) != "http://") {
         throw std::invalid_argument("Sorry, this code only supports HTTP URLs.");
@@ -45,25 +82,30 @@ void parseURL(URI& parsedUri, std::string url) {
 }
 
 // Function to convert domain name to ip
-void domainToIp(URI& uri) {
+void domainToIp(URI& uri)
+{
     struct hostent*  he;
     struct in_addr** addr_list;
     std::string      result;
 
     if ((he = gethostbyname(uri.host.c_str())) == NULL) {
-        result = "Idk how to call this error";
+        LOG_ERROR("Failed to resolve comain {} ip!", uri.host);
+        throw std::runtime_error("Failed convert domain \"" + uri.host + "\" to ip");
     }
 
-    addr_list = (struct in_addr**)he->h_addr_list;
-    uri.ip.address    = inet_ntoa(*addr_list[0]);
-    uri.ip.port = uri.port;
+    addr_list      = (struct in_addr**)he->h_addr_list;
+    uri.ip.address = inet_ntoa(*addr_list[0]);
+    uri.ip.port    = uri.port;
 }
 
-void getRequestIP(const URI& uri) {
+void getRequestIP(const URI& uri)
+{
     struct addrinfo hints, *res;
-    int             sockfd, n;
-    char            buffer[2048];
-    std::string     request, header, response;
+
+    socket_t    sockfd = 0;
+    int         n;
+    char        buffer[2048];
+    std::string request, header, response;
 
     // Get data about IP-address
     memset(&hints, 0, sizeof(hints));
@@ -71,31 +113,35 @@ void getRequestIP(const URI& uri) {
     hints.ai_socktype = SOCK_STREAM;
     //  if ((n = getaddrinfo(ip.c_str(), "http", &hints, &res)) != 0)
     if ((n = getaddrinfo(uri.ip.address.c_str(), uri.ip.port.c_str(), &hints, &res)) != 0) {
-        std::cerr << "getaddrinfo: " << gai_strerror(n) << std::endl;
+        LOG_ERROR("getaddrinfo: {}", gai_strerror(n));
         return;
     }
 
     // Create socket and setup connection
     if ((sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
-        perror("socket");
+        LOG_ERROR("Failed to create a socket");
         return;
     }
+
     if (connect(sockfd, res->ai_addr, res->ai_addrlen) == -1) {
-        perror("connect");
+        LOG_ERROR("Failed to connect to the socket");
         return;
     }
+
     freeaddrinfo(res);
 
     // Send request to server
-    request = "GET "+ uri.path + " HTTP/1.0\r\n";
+    request = "GET " + uri.path + " HTTP/1.0\r\n";
     request += "Host: " + uri.ip.address + "\r\n";
     request += "User-Agent: Http/1.0\r\n\r\n";
+
+    LOG_DEBUG("Sending request with data:\n{}", request);
     send(sockfd, request.c_str(), request.size(), 0);
 
     // Read data from server and display it
-    ssize_t bytes;
-    bool    headerEnded   = false;
-    size_t  contentLength = 0;
+    size_t bytes;
+    bool   headerEnded   = false;
+    size_t contentLength = 0;
 
     while ((bytes = recv(sockfd, buffer, sizeof(buffer), 0)) > 0) {
         if (!headerEnded) {
@@ -119,18 +165,37 @@ void getRequestIP(const URI& uri) {
             break;
         }
     }
-    std::cout << response;
-    close(sockfd);
+
+    LOG_DEBUG("Content received: {}", response);
+
+    CLOSE_SOCKET(sockfd);
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
+    LOG_INIT();
+
+    if (!PLATFORM_INIT()) {
+        LOG_CRITICAL("Unable to initialize the platform networking");
+        return -1;
+    }
+
     if (argc < 2) {
-        std::cerr << "Incorrect input: " << argv[0] << " <URL> " << std::endl;
+        LOG_CRITICAL("Incorrect input. Example: {} <URL>", argv[0]);
         return 1;
     }
+
     URI uri;
-    parseURL(uri, argv[1]);
-    domainToIp(uri);
-    getRequestIP(uri);
+
+    try {
+        parseURL(uri, argv[1]);
+        domainToIp(uri);
+        getRequestIP(uri);
+    } catch (const std::exception& e) {
+        LOG_ERROR("Exception has occurred: {}", e.what());
+    }
+
+    PLATFORM_CLEANUP();
+
     return 0;
 }

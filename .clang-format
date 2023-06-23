@@ -30,10 +30,11 @@ IndentCaseLabels: true
 BraceWrapping:
  AfterCaseLabel: true
  AfterClass: true
- AfterFunction: false
+ AfterFunction: true
  AfterEnum: true
  AfterNamespace: true
  AfterStruct: true
  AfterUnion: true
  AfterControlStatement: Never
 SpaceInEmptyBlock: true
+SortIncludes: false

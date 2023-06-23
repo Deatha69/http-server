@@ -3,10 +3,13 @@
     "tasks": [
         {
             "type": "shell",
-            "label": "clang++ build client",
+            "label": "clang++ build client (Mac OS)",
             "command": "clang++",
             "args": [
                 "-std=c++17",
+                "-fexceptions",
+                "--include-directory",
+                "shared",
                 "-g",
                 "client/main.cpp",
                 "-o",
@@ -18,17 +21,41 @@
             "problemMatcher": [
                 "$gcc"
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
+            "group": "build"
         },
         {
             "type": "shell",
-            "label": "clang++ build server",
+            "label": "clang++ build client (Windows)",
             "command": "clang++",
             "args": [
                 "-std=c++17",
+                "-fexceptions",
+                "--include-directory",
+                "shared",
+                "-g",
+                "client/main.cpp",
+                "-o",
+                "out/client",
+                "-gcodeview",
+                "-lws2_32"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        },
+        {
+            "type": "shell",
+            "label": "clang++ build server (Mac OS)",
+            "command": "clang++",
+            "args": [
+                "-std=c++17",
+                "-fexceptions",
+                "--include-directory",
+                "shared",
                 "-g",
                 "server/main.cpp",
                 "-o",
@@ -40,10 +67,30 @@
             "problemMatcher": [
                 "$gcc"
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
+            "group": "build"
+        },
+        {
+            "type": "shell",
+            "label": "clang++ build server (Windows)",
+            "command": "clang++",
+            "args": [
+                "-std=c++17",
+                "-fexceptions",
+                "--include-directory",
+                "shared",
+                "-g",
+                "server/main.cpp",
+                "-o",
+                "out/server",
+                "-lws2_32"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
         }
     ]
 }
