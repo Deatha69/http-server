@@ -3,6 +3,7 @@
 
 #include <string>
 #include <stdint.h>
+#include <sstream>
 
 #if defined(__APPLE__)
 #include <arpa/inet.h>
@@ -13,7 +14,7 @@ using socket_t = int;
 #define CLOSE_SOCKET(sockfd) close(sockfd)
 #define PLATFORM_INIT() \
     [] {                \
-        return true     \
+        return true;    \
     }()
 #define PLATFORM_CLEANUP() \
     [] {                   \
@@ -54,31 +55,35 @@ struct URI
     IP          ip;
 };
 
-// Function to parse uri
-void parseURL(URI& parsedUri, std::string url)
+// Function for checking the ip address
+bool isIpAddressValid(const std::string& ip_address)
 {
-    constexpr size_t httpPrefixSize = 7;
-    if (url.substr(0, httpPrefixSize) != "http://") {
-        throw std::invalid_argument("Sorry, this code only supports HTTP URLs.");
+    std::vector<std::string> parts;
+    std::stringstream        ss(ip_address);
+    std::string              part;
+    while (std::getline(ss, part, '.')) {
+        parts.push_back(part);
     }
 
-    url                     = url.substr(httpPrefixSize);
-    const size_t slashIndex = url.find_first_of('/');
-    if (slashIndex == std::string::npos) {
-        parsedUri.host = url;
-        parsedUri.path = "/";
-    } else {
-        parsedUri.host = url.substr(0, slashIndex);
-        parsedUri.path = url.substr(slashIndex);
+    if (parts.size() != 4) {
+        throw std::runtime_error("IP address should contain exactly 4 parts");
+        return false;
     }
 
-    const size_t colonIndex = parsedUri.host.find_first_of(':');
-    if (colonIndex != std::string::npos) {
-        parsedUri.port = parsedUri.host.substr(colonIndex + 1);
-        parsedUri.host = parsedUri.host.substr(0, colonIndex);
-    } else {
-        parsedUri.port = "80";
+    for (const auto& part : parts) {
+        try {
+            int num = std::stoi(part);
+            if (num < 0 || num > 255) {
+                throw std::runtime_error("Number " + part + " is not in the range from 0 to 255");
+                return false;
+            }
+        } catch (std::invalid_argument&) {
+            throw std::runtime_error("Part " + part + " is not a number");
+            return false;
+        }
     }
+
+    return true;
 }
 
 // Function to convert domain name to ip
@@ -95,7 +100,60 @@ void domainToIp(URI& uri)
 
     addr_list      = (struct in_addr**)he->h_addr_list;
     uri.ip.address = inet_ntoa(*addr_list[0]);
-    uri.ip.port    = uri.port;
+    if (isIpAddressValid(uri.ip.address)) {
+        uri.ip.port = uri.port;
+    } else {
+        LOG_ERROR("Invalid ip!", uri.ip.address);
+        throw std::runtime_error("Invalid ip \"" + uri.ip.address + "\".");
+    }
+}
+
+// Function to parse data
+void parseData(URI& parsedUri, std::string url)
+{
+    constexpr size_t httpPrefixSize = 7;
+    if (url.substr(0, httpPrefixSize) != "http://") {
+        size_t pos = url.find(":");
+        if (pos == std::string::npos) {
+            if (isIpAddressValid(url)) {
+                parsedUri.ip.address = url;
+                parsedUri.ip.port    = "80";
+                parsedUri.path       = "/";
+            } else
+                throw std::runtime_error("Invalid ip \"" + url + "\".");
+        } else {
+            if (isIpAddressValid(url.substr(0, pos))) {
+                int portNumber = std::stoi(url.substr(pos + 1));
+                if (portNumber >= 0 && portNumber <= 65535) {
+                    parsedUri.ip.address = url.substr(0, pos);
+                    parsedUri.ip.port    = url.substr(pos + 1);
+                    parsedUri.path       = "/";
+                } else 
+                    throw std::runtime_error("Invalid port \"" + url.substr(pos + 1) + "\".");
+            } else 
+                throw std::runtime_error("Invalid ip \"" + url.substr(0, pos) + "\".");
+        }
+
+    } else {
+        url                     = url.substr(httpPrefixSize);
+        const size_t slashIndex = url.find_first_of('/');
+        if (slashIndex == std::string::npos) {
+            parsedUri.host = url;
+            parsedUri.path = "/";
+        } else {
+            parsedUri.host = url.substr(0, slashIndex);
+            parsedUri.path = url.substr(slashIndex);
+        }
+
+        const size_t colonIndex = parsedUri.host.find_first_of(':');
+        if (colonIndex != std::string::npos) {
+            parsedUri.port = parsedUri.host.substr(colonIndex + 1);
+            parsedUri.host = parsedUri.host.substr(0, colonIndex);
+        } else {
+            parsedUri.port = "80";
+        }
+        domainToIp(parsedUri);
+    }
 }
 
 void getRequestIP(const URI& uri)
@@ -188,8 +246,7 @@ int main(int argc, char* argv[])
     URI uri;
 
     try {
-        parseURL(uri, argv[1]);
-        domainToIp(uri);
+        parseData(uri, argv[1]);
         getRequestIP(uri);
     } catch (const std::exception& e) {
         LOG_ERROR("Exception has occurred: {}", e.what());
