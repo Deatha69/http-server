@@ -35,6 +35,8 @@
                 "--include-directory",
                 "shared",
                 "-g",
+                "additional/ip.cpp",
+                "client/client.cpp",
                 "client/main.cpp",
                 "-o",
                 "out/client",
