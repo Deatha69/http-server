@@ -74,6 +74,25 @@
         "iomanip": "cpp",
         "span": "cpp",
         "stack": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "xhash": "cpp",
+        "forward_list": "cpp",
+        "iterator": "cpp",
+        "list": "cpp",
+        "stop_token": "cpp",
+        "utility": "cpp",
+        "xfacet": "cpp",
+        "xiosbase": "cpp",
+        "xlocale": "cpp",
+        "xlocbuf": "cpp",
+        "xlocinfo": "cpp",
+        "xlocmes": "cpp",
+        "xlocmon": "cpp",
+        "xlocnum": "cpp",
+        "xloctime": "cpp",
+        "xmemory": "cpp",
+        "xstddef": "cpp",
+        "xtr1common": "cpp",
+        "xutility": "cpp"
     }
 }

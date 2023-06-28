@@ -41,6 +41,8 @@ using socket_t = SOCKET;
 #endif
 
 #include "../additional/log.hpp"
+#include "../shared/headers.hpp"
+
 class Client
 {
   private:
