@@ -1,4 +1,4 @@
-#include "client.h"
+#include "client.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -20,7 +20,6 @@ int main(int argc, char* argv[])
     } catch (const std::exception& e) {
         LOG_ERROR("Exception has occurred: {}", e.what());
     }
-
     PLATFORM_CLEANUP();
 
     return 0;

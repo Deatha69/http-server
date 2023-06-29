@@ -40,29 +40,24 @@ using socket_t = SOCKET;
     }()
 #endif
 
-#include "../additional/log.hpp"
+#include "../shared/log.hpp"
 #include "../shared/headers.hpp"
+#include "../shared/parser.hpp"
+#include "../shared/ip.hpp"
 
 class Client
 {
   private:
-    struct URI
-    {
-        std::string host;
-        std::string port;
-        std::string path;
-    };
 
     std::string m_url;
     URI         m_uri;
 
   public:
     Client(const std::string& url);
-
     void setup();
 
   private:
-    void parseIP();      // Function to parse IP
-    void parseURL();     // Function to parse URL
     void getRequestIP(); // Function to send/accept data
+    bool sendRequest(socket_t sockfd) const;
+    bool readData(socket_t sockfd, char* buffer, size_t buffer_size) const;
 };
