@@ -432,3 +432,4 @@ FodyWeavers.xsd
 *.app
 
 /out/
+.DS_Store
