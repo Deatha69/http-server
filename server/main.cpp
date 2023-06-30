@@ -1,13 +1,14 @@
 #include <iostream>
 #include <string>
-#include <cstring>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdexcept>
+#include <vector>
 
 #include "../shared/headers.hpp"
-#include "../additional/log.hpp"
+#include "../shared/log.hpp"
+#include "../shared/parser_http.hpp"
 
 class Server
 {
@@ -15,14 +16,9 @@ class Server
     int                m_server_socket;
     struct sockaddr_in m_server_addr;
 
-    struct StartLine
-    {
-        std::string request;
-        std::string path;
-        std::string version;
-    };
-
-    StartLine line;
+    std::vector<std::string> m_startLine;
+    Headers m_headers;
+    std::string m_data;
 
   public:
     Server(int port)
@@ -91,37 +87,17 @@ class Server
         }
         return std::string(buffer);
     }
-    /*
-    void parse_http_start_line(const std::string& start_line)
-    {
-        std::vector<std::string> parts;
-        std::size_t              start = 0;
-        std::size_t              end   = start_line.find(" ");
-        while (end != std::string::npos) {
-            parts.push_back(start_line.substr(start, end - start));
-            start = end + 1;
-            end   = start_line.find(" ", start);
-        }
-        parts.push_back(start_line.substr(start));
 
-        if (parts.size() != 3) {
-            throw std::invalid_argument("Invalid start line format");
-        }
-
-        line.request  = parts[0];
-        line.path    = parts[1];
-        line.version = parts[2];
-    }
-    */
     std::string process_request(const std::string& request)
     {
-        /*
-        std::size_t              end_of_start_line = request.find("\r\n");
-        std::string              start_line        = request.substr(0, end_of_start_line);
-        parse_http_start_line(start_line);
-        */
-
-        std::string response = "Black big African Rhino";
+        HttpRequest::parseStartLine(request, m_startLine);
+        HttpRequest::parseHeaders(request, m_headers);
+        HttpRequest::parseData(request, m_data);
+        std::string temp_for_check;
+        for (const auto& elem : m_startLine) {
+            temp_for_check += elem + " ";
+        }
+        std::string response = "\n" + temp_for_check + "\n" + m_headers.to_string() + m_data;
         return response;
     }
 
