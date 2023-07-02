@@ -1,30 +1,5 @@
 #include "parser_url.hpp"
 
-void Parser::parse(const std::string& url, URI& uri)
-{
-    if (url.substr(0, 7) != "http://") {
-        parseIP(url, uri);
-    } else {
-        parseURL(url, uri);
-    }
-}
-
-void Parser::parseIP(const std::string& url, URI& uri)
-{
-    size_t pos = url.find(":");
-    if (pos == std::string::npos) {
-        IP ip(url, "80");
-        uri.host = ip.getAddress();
-        uri.port = ip.getPort();
-        uri.path = "/";
-    } else {
-        IP ip(url.substr(0, pos), url.substr(pos + 1));
-        uri.host = ip.getAddress();
-        uri.port = ip.getPort();
-        uri.path = "/";
-    }
-}
-
 void Parser::parseURL(const std::string& url, URI& uri)
 {
     std::string  parsedURL  = url.substr(7);

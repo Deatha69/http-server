@@ -38,6 +38,51 @@ void HttpRequest::parseData(const std::string& request, std::string& data)
     data = request.substr(headersEndPos + 4);
 }
 
+void HttpRequest::parseQuery(std::string& path, std::unordered_map<std::string, std::string>& values)
+{
+    size_t      pos = 0;
+    std::string token, key, value;
+
+    if (path == "/") {
+        key         = "index.php";
+        value       = "content of index.php";
+        values[key] = value;
+        return;
+    }
+
+    size_t startPos = path.find('?');
+
+    if (startPos != std::string::npos) {
+        path = path.substr(startPos + 1);
+    }
+
+    // Parse the query string
+    while ((pos = path.find('&')) != std::string::npos) {
+        token = path.substr(0, pos);
+        path.erase(0, pos + 1);
+
+        // Split the token into key and value using '=' as delimiter
+        size_t equalsPos = token.find('=');
+        if (equalsPos != std::string::npos) {
+            key   = token.substr(0, equalsPos);
+            value = token.substr(equalsPos + 1);
+
+            // Store key-value pair in the unordered map
+            values[key] = value;
+        }
+    }
+
+    // Store the last key-value pair
+    size_t equalsPos = path.find('=');
+    if (equalsPos != std::string::npos) {
+        key   = path.substr(0, equalsPos);
+        value = path.substr(equalsPos + 1);
+
+        // Store key-value pair in the unordered map
+        values[key] = value;
+    }
+}
+
 size_t HttpRequest::findLineEndPos(const std::string& request)
 {
     size_t lineEndPos = request.find("\r\n");

@@ -4,7 +4,7 @@ Client::Client(const std::string& url) : m_url(url) { }
 
 void Client::setup()
 {
-    Parser::parse(m_url, m_uri);
+    Parser::parseURL(m_url, m_uri);
     getRequestIP();
 }
 

@@ -17,8 +17,8 @@ class Server
     struct sockaddr_in m_server_addr;
 
     std::vector<std::string> m_startLine;
-    Headers m_headers;
-    std::string m_data;
+    Headers                  m_headers;
+    std::string              m_data;
 
   public:
     Server(int port)
@@ -93,11 +93,13 @@ class Server
         HttpRequest::parseStartLine(request, m_startLine);
         HttpRequest::parseHeaders(request, m_headers);
         HttpRequest::parseData(request, m_data);
-        std::string temp_for_check;
-        for (const auto& elem : m_startLine) {
-            temp_for_check += elem + " ";
+
+        std::unordered_map<std::string, std::string> parsed_query;
+        HttpRequest::parseQuery(m_startLine[1], parsed_query);
+        std::string response;
+        for (auto& pair : parsed_query) {
+            response += "\n" + pair.first + ": " + pair.second ;
         }
-        std::string response = "\n" + temp_for_check + "\n" + m_headers.to_string() + m_data;
         return response;
     }
 

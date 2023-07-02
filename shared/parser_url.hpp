@@ -14,12 +14,5 @@ struct URI
 class Parser
 {
   public:
-    static void parse(const std::string& url, URI& uri);
-
-  private:
-    static void parseIP(const std::string& url, URI& uri);
     static void parseURL(const std::string& url, URI& uri);
 };
-
-
-
