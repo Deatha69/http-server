@@ -32,5 +32,6 @@ class Server
     std::string read_request(int client_socket);
     std::string process_request(const std::string& request);
     void send_response(int client_socket, const std::string& response);
+    void clear_request();
 };
 

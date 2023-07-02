@@ -23,6 +23,7 @@ Server::Server(int port)
 
 Server::~Server()
 {
+    clear_request();
     close(m_server_socket);
 }
 
@@ -68,10 +69,7 @@ std::string Server::read_request(int client_socket)
 
 std::string Server::process_request(const std::string& request)
 {
-    m_startLine.clear();
-    m_headers.data.clear();
-    m_data.clear();
-
+    clear_request();
     HttpRequest::parseStartLine(request, m_startLine);
     HttpRequest::parseHeaders(request, m_headers);
     HttpRequest::parseData(request, m_data);
@@ -91,4 +89,11 @@ void Server::send_response(int client_socket, const std::string& response)
         LOG_ERROR("Error sending response");
         throw std::runtime_error("Error sending response");
     }
+}
+
+void Server::clear_request()
+{
+    m_startLine.clear();
+    m_headers.data.clear();
+    m_data.clear();
 }
