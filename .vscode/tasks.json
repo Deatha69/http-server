@@ -60,7 +60,7 @@
                 "shared",
                 "-g",
                 "shared/*.cpp",
-                "server/main.cpp",
+                "server/*.cpp",
                 "-o",
                 "out/server"
             ],
@@ -83,7 +83,7 @@
                 "shared",
                 "-g",
                 "shared/*.cpp",
-                "server/main.cpp",
+                "server/*.cpp",
                 "-o",
                 "out/server",
                 "-lws2_32"
