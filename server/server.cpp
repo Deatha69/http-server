@@ -21,7 +21,7 @@ Server::Server(int port)
     std::cout << "Server started. Listening on port " << port << "..." << std::endl;
 }
 
-~Server::Server()
+Server::~Server()
 {
     close(m_server_socket);
 }
@@ -68,10 +68,13 @@ std::string Server::read_request(int client_socket)
 
 std::string Server::process_request(const std::string& request)
 {
+    m_startLine.clear();
+    m_headers.data.clear();
+    m_data.clear();
+
     HttpRequest::parseStartLine(request, m_startLine);
     HttpRequest::parseHeaders(request, m_headers);
     HttpRequest::parseData(request, m_data);
-
     std::unordered_map<std::string, std::string> parsed_query;
     HttpRequest::parseQuery(m_startLine[1], parsed_query);
     std::string response;
@@ -89,4 +92,3 @@ void Server::send_response(int client_socket, const std::string& response)
         throw std::runtime_error("Error sending response");
     }
 }
-

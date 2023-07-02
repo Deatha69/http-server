@@ -40,6 +40,8 @@ void HttpRequest::parseData(const std::string& request, std::string& data)
 
 void HttpRequest::parseQuery(std::string& path, std::unordered_map<std::string, std::string>& values)
 {
+    values.clear();
+    
     size_t      pos = 0;
     std::string token, key, value;
 
