@@ -2,7 +2,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/socket.h>
-#include "../shared/ip.hpp"
+#include "../shared/log.hpp"
 
 struct URI
 {

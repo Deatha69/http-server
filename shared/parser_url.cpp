@@ -20,6 +20,7 @@ void Parser::parseURL(const std::string& url, URI& uri)
         uri.port = "80";
     }
 
+    // Request to DNS server
     struct hostent*  he;
     struct in_addr** addr_list;
 
@@ -29,6 +30,5 @@ void Parser::parseURL(const std::string& url, URI& uri)
     }
 
     addr_list = (struct in_addr**)he->h_addr_list;
-    IP ip(inet_ntoa(*addr_list[0]), "80");
-    uri.host = ip.getAddress();
+    uri.host = inet_ntoa(*addr_list[0]);
 }

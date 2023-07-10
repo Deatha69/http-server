@@ -43,7 +43,6 @@ using socket_t = SOCKET;
 #include "../shared/log.hpp"
 #include "../shared/headers.hpp"
 #include "../shared/parser_url.hpp"
-#include "../shared/ip.hpp"
 
 class Client
 {
