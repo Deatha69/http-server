@@ -1,3 +1,5 @@
+#include <openssl/ssl.h>
+
 #include "client.hpp"
 
 Client::Client(const std::string& url) : m_url(url) { }

@@ -8,13 +8,15 @@
             "args": [
                 "-std=c++17",
                 "-fexceptions",
-                "--include-directory",
+                "-I",
                 "shared",
+                "-I",
+                "shared/openssl/include",
                 "-g",
                 "shared/*.cpp",
                 "client/*.cpp",
                 "-o",
-                "out/client"
+                "out/client",
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

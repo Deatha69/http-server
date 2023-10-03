@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <sstream>
 
+#include <openssl/ssl.h>
+
 #if defined(__APPLE__)
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -15,6 +17,8 @@ using socket_t = int;
 #define CLOSE_SOCKET(sockfd) close(sockfd)
 #define PLATFORM_INIT() \
     [] {                \
+        LOG_INFO("Return code: {}", SSL_library_init()); \
+        OpenSSL_add_all_algorithms(); \
         return true;    \
     }()
 #define PLATFORM_CLEANUP() \
